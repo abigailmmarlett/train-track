@@ -22,7 +22,5 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>WKApplication</key>
 	<true/>
-	<key>WKExtensionDelegateClassName</key>
-	<string>$(PRODUCT_MODULE_NAME).ExtensionDelegate</string>
 </dict>
 </plist>
