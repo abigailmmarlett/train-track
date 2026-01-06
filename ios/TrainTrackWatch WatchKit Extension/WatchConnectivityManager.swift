@@ -12,6 +12,9 @@ import SwiftUI
 class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = WatchConnectivityManager()
     
+    // Constants
+    private static let completeLabel = "Complete"
+    
     @Published var isConnected = false
     @Published var currentLabel = "Ready"
     @Published var remainingTime = "00:00"
@@ -62,7 +65,7 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         // Update current section label
         if let label = message["currentLabel"] as? String {
             // Check if section changed (for haptic feedback)
-            if label != lastSectionLabel && !lastSectionLabel.isEmpty && label != "Complete" {
+            if label != lastSectionLabel && !lastSectionLabel.isEmpty && label != Self.completeLabel {
                 // Trigger haptic when section changes
                 triggerHaptic()
             }
@@ -82,7 +85,7 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         
         // Handle completion
         if let isCompleted = message["isCompleted"] as? Bool, isCompleted {
-            currentLabel = "Complete"
+            currentLabel = Self.completeLabel
             remainingTime = "00:00"
             progress = 1.0
             triggerHaptic()

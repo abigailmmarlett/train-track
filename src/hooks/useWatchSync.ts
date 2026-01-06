@@ -20,8 +20,18 @@ interface TimerState {
  */
 export function useWatchSync(timerState: TimerState | null) {
   useEffect(() => {
-    // Only sync on iOS and when state is available
-    if (Platform.OS !== 'ios' || !timerState || !WatchConnectivityBridge) {
+    // Skip sync on non-iOS platforms
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    // Skip sync if no timer state available
+    if (!timerState) {
+      return;
+    }
+
+    // Skip sync if bridge module not available (older RN versions or build issues)
+    if (!WatchConnectivityBridge) {
       return;
     }
 

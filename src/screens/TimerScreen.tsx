@@ -121,17 +121,23 @@ export function TimerScreen({route}: Props) {
     ? 1 - (timer.remainingSeconds / timer.currentBlock.durationSeconds)
     : 0;
 
+  // Prepare watch sync state
+  const watchSyncState = React.useMemo(() => {
+    // Only sync when timer has active block or is completed
+    if (!timer.currentBlock && timer.status !== 'completed') {
+      return null;
+    }
+
+    return {
+      currentLabel: timer.currentBlock?.label || 'Complete',
+      remainingSeconds: timer.remainingSeconds,
+      progress: progress,
+      isCompleted: timer.status === 'completed',
+    };
+  }, [timer.currentBlock, timer.remainingSeconds, progress, timer.status]);
+
   // Sync timer state to Apple Watch
-  useWatchSync(
-    timer.currentBlock || timer.status === 'completed'
-      ? {
-          currentLabel: timer.currentBlock?.label || 'Complete',
-          remainingSeconds: timer.remainingSeconds,
-          progress: progress,
-          isCompleted: timer.status === 'completed',
-        }
-      : null,
-  );
+  useWatchSync(watchSyncState);
 
   // Auto-start on mount if idle
   const hasStarted = useRef(false);

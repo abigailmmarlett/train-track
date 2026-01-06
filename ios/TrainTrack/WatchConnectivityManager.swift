@@ -7,12 +7,14 @@
 
 import Foundation
 import WatchConnectivity
+import os.log
 
 @objc(WatchConnectivityManager)
 class WatchConnectivityManager: NSObject {
     static let shared = WatchConnectivityManager()
     
     private var session: WCSession?
+    private let logger = Logger(subsystem: "org.traintrack.TrainTrack", category: "WatchConnectivity")
     
     override private init() {
         super.init()
@@ -38,19 +40,23 @@ class WatchConnectivityManager: NSObject {
         ]
         
         // Send message for immediate update
-        session.sendMessage(message, replyHandler: nil) { error in
-            print("Failed to send timer state to watch: \(error.localizedDescription)")
+        session.sendMessage(message, replyHandler: nil) { [weak self] error in
+            self?.logger.error("Failed to send timer state to watch: \(error.localizedDescription, privacy: .public). Label: \(currentLabel, privacy: .public)")
         }
         
         // Also update application context for persistence
-        try? session.updateApplicationContext(message)
+        do {
+            try session.updateApplicationContext(message)
+        } catch {
+            logger.error("Failed to update application context: \(error.localizedDescription, privacy: .public)")
+        }
     }
 }
 
 extension WatchConnectivityManager: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         if let error = error {
-            print("WCSession activation error: \(error.localizedDescription)")
+            logger.error("WCSession activation error: \(error.localizedDescription, privacy: .public)")
         }
     }
     
