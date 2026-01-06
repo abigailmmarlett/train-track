@@ -9,7 +9,7 @@ A React Native application built with TypeScript, iOS-first, and prepared for fu
 - ✅ React Navigation for screen navigation
 - ✅ Dark mode support with custom theme system
 - ✅ iOS-first development approach
-- ✅ Prepared for Apple Watch integration
+- ✅ Apple Watch companion app with real-time sync
 
 ## Project Structure
 
@@ -92,7 +92,15 @@ function MyComponent() {
 
 ## Apple Watch Integration
 
-This project is prepared for future Apple Watch integration. See [docs/APPLE_WATCH.md](docs/APPLE_WATCH.md) for more information.
+✅ **Apple Watch companion app is implemented!**
+
+The app includes a display-only Watch companion that shows:
+- Current workout section
+- Remaining time with countdown ring
+- Haptic feedback on section changes
+- Large, glanceable UI
+
+See [docs/WATCH_COMPANION.md](docs/WATCH_COMPANION.md) for architecture details and [docs/WATCH_SETUP.md](docs/WATCH_SETUP.md) for Xcode setup instructions.
 
 ## License
 

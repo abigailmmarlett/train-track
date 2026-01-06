@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {useTheme, useTimer} from '../hooks';
+import {useTheme, useTimer, useWatchSync} from '../hooks';
 import {getSequences} from '../storage';
 import type {RootStackParamList, TimerSequence} from '../types';
 
@@ -120,6 +120,18 @@ export function TimerScreen({route}: Props) {
   const progress = timer.currentBlock
     ? 1 - (timer.remainingSeconds / timer.currentBlock.durationSeconds)
     : 0;
+
+  // Sync timer state to Apple Watch
+  useWatchSync(
+    timer.currentBlock || timer.status === 'completed'
+      ? {
+          currentLabel: timer.currentBlock?.label || 'Complete',
+          remainingSeconds: timer.remainingSeconds,
+          progress: progress,
+          isCompleted: timer.status === 'completed',
+        }
+      : null,
+  );
 
   // Auto-start on mount if idle
   const hasStarted = useRef(false);
