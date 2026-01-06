@@ -6,11 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useTheme} from '../hooks';
-import {getSequences} from '../storage';
+import {getSequences, saveSequences} from '../storage';
 import type {TimerSequence, RootStackParamList} from '../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -77,6 +78,59 @@ export function SequencesListScreen() {
     navigation.navigate('CreateSequence');
   };
 
+  const handleLoadSampleData = async () => {
+    const sampleSequences: TimerSequence[] = [
+      {
+        id: '1',
+        name: 'Quick Workout',
+        blocks: [
+          {id: 'b1', label: 'Warm Up', durationSeconds: 180},
+          {id: 'b2', label: 'Exercise', durationSeconds: 300},
+          {id: 'b3', label: 'Cool Down', durationSeconds: 120},
+        ],
+      },
+      {
+        id: '2',
+        name: 'HIIT Training',
+        blocks: [
+          {id: 'b1', label: 'Warm Up', durationSeconds: 300},
+          {id: 'b2', label: 'Sprint', durationSeconds: 30},
+          {id: 'b3', label: 'Rest', durationSeconds: 30},
+          {id: 'b4', label: 'Sprint', durationSeconds: 30},
+          {id: 'b5', label: 'Rest', durationSeconds: 30},
+          {id: 'b6', label: 'Sprint', durationSeconds: 30},
+          {id: 'b7', label: 'Cool Down', durationSeconds: 300},
+        ],
+      },
+      {
+        id: '3',
+        name: 'Long Run',
+        blocks: [
+          {id: 'b1', label: 'Warm Up', durationSeconds: 600},
+          {id: 'b2', label: 'Run', durationSeconds: 3600},
+          {id: 'b3', label: 'Cool Down', durationSeconds: 600},
+        ],
+      },
+      {
+        id: '4',
+        name: 'Meditation',
+        blocks: [
+          {id: 'b1', label: 'Breathing', durationSeconds: 300},
+          {id: 'b2', label: 'Meditation', durationSeconds: 1200},
+        ],
+      },
+    ];
+
+    try {
+      await saveSequences(sampleSequences);
+      Alert.alert('Success', 'Sample sequences loaded!');
+      loadSequences();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to load sample data');
+      console.error('Error loading sample data:', err);
+    }
+  };
+
   const renderSequenceItem = ({item}: {item: TimerSequence}) => {
     const totalDuration = calculateTotalDuration(item);
     const formattedDuration = formatDuration(totalDuration);
@@ -133,6 +187,20 @@ export function SequencesListScreen() {
         ]}>
         Create your first workout sequence to get started
       </Text>
+      <TouchableOpacity
+        style={[
+          styles.sampleDataButton,
+          {borderColor: theme.colors.border},
+        ]}
+        onPress={handleLoadSampleData}>
+        <Text
+          style={[
+            styles.sampleDataButtonText,
+            {color: theme.colors.primary},
+          ]}>
+          Load Sample Data
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -240,6 +308,17 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     textAlign: 'center',
+  },
+  sampleDataButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sampleDataButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   createButton: {
     position: 'absolute',
