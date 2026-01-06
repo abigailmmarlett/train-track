@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {TimerSequence} from '../types';
+import {isValidTimerSequence} from '../types/timer';
 
 const SEQUENCES_STORAGE_KEY = '@timer_sequences';
 const ACTIVE_TIMER_STORAGE_KEY = '@active_timer_state';
@@ -27,7 +28,22 @@ export interface ActiveTimerState {
 export async function getSequences(): Promise<TimerSequence[]> {
   try {
     const jsonValue = await AsyncStorage.getItem(SEQUENCES_STORAGE_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
+    if (jsonValue == null) {
+      return [];
+    }
+    
+    const sequences = JSON.parse(jsonValue);
+    // Validate and filter out any invalid sequences
+    if (Array.isArray(sequences)) {
+      return sequences.filter(seq => {
+        const valid = isValidTimerSequence(seq);
+        if (!valid) {
+          console.warn('Invalid sequence found in storage, skipping:', seq);
+        }
+        return valid;
+      });
+    }
+    return [];
   } catch (error) {
     console.error('Error reading sequences from storage:', error);
     return [];
@@ -56,6 +72,9 @@ export async function saveSequences(sequences: TimerSequence[]): Promise<void> {
  */
 export async function addSequence(sequence: TimerSequence): Promise<void> {
   try {
+    if (!isValidTimerSequence(sequence)) {
+      throw new Error('Invalid timer sequence');
+    }
     const sequences = await getSequences();
     sequences.push(sequence);
     await saveSequences(sequences);
@@ -72,6 +91,9 @@ export async function addSequence(sequence: TimerSequence): Promise<void> {
  */
 export async function updateSequence(sequence: TimerSequence): Promise<void> {
   try {
+    if (!isValidTimerSequence(sequence)) {
+      throw new Error('Invalid timer sequence');
+    }
     const sequences = await getSequences();
     const index = sequences.findIndex(s => s.id === sequence.id);
     
