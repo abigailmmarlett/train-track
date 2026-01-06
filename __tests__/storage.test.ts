@@ -9,8 +9,12 @@ import {
   addSequence,
   updateSequence,
   deleteSequence,
+  saveActiveTimerState,
+  getActiveTimerState,
+  clearActiveTimerState,
 } from '../src/storage';
 import type {TimerSequence} from '../src/types';
+import type {ActiveTimerState} from '../src/storage';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -264,6 +268,113 @@ describe('Storage Utilities', () => {
         '@timer_sequences',
         JSON.stringify(existingSequences),
       );
+    });
+  });
+
+  describe('Active Timer State Persistence', () => {
+    describe('saveActiveTimerState', () => {
+      it('should save active timer state to storage', async () => {
+        const state: ActiveTimerState = {
+          sequenceId: 'seq1',
+          currentBlockIndex: 2,
+          remainingSeconds: 45,
+          totalElapsedSeconds: 120,
+          status: 'running',
+          startTime: Date.now(),
+        };
+        (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+
+        await saveActiveTimerState(state);
+
+        expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+          '@active_timer_state',
+          JSON.stringify(state),
+        );
+      });
+
+      it('should not throw on error, only log', async () => {
+        const state: ActiveTimerState = {
+          sequenceId: 'seq1',
+          currentBlockIndex: 0,
+          remainingSeconds: 60,
+          totalElapsedSeconds: 0,
+          status: 'paused',
+          startTime: Date.now(),
+        };
+        (AsyncStorage.setItem as jest.Mock).mockRejectedValue(
+          new Error('Storage error'),
+        );
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+        // Should not throw
+        await expect(saveActiveTimerState(state)).resolves.not.toThrow();
+        expect(consoleSpy).toHaveBeenCalled();
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('getActiveTimerState', () => {
+      it('should return null when no state exists', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+
+        const result = await getActiveTimerState();
+
+        expect(result).toBeNull();
+        expect(AsyncStorage.getItem).toHaveBeenCalledWith('@active_timer_state');
+      });
+
+      it('should return parsed state when it exists', async () => {
+        const mockState: ActiveTimerState = {
+          sequenceId: 'seq1',
+          currentBlockIndex: 1,
+          remainingSeconds: 30,
+          totalElapsedSeconds: 90,
+          status: 'running',
+          startTime: 1234567890,
+        };
+        (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+          JSON.stringify(mockState),
+        );
+
+        const result = await getActiveTimerState();
+
+        expect(result).toEqual(mockState);
+      });
+
+      it('should return null on error', async () => {
+        (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
+          new Error('Storage error'),
+        );
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+        const result = await getActiveTimerState();
+
+        expect(result).toBeNull();
+        expect(consoleSpy).toHaveBeenCalled();
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('clearActiveTimerState', () => {
+      it('should remove active timer state from storage', async () => {
+        (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+
+        await clearActiveTimerState();
+
+        expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@active_timer_state');
+      });
+
+      it('should not throw on error, only log', async () => {
+        (AsyncStorage.removeItem as jest.Mock).mockRejectedValue(
+          new Error('Storage error'),
+        );
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+        // Should not throw
+        await expect(clearActiveTimerState()).resolves.not.toThrow();
+        expect(consoleSpy).toHaveBeenCalled();
+        consoleSpy.mockRestore();
+      });
     });
   });
 });

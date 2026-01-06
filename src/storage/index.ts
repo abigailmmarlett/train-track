@@ -7,8 +7,19 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {TimerSequence} from '../types';
+import {isValidTimerSequence} from '../types/timer';
 
 const SEQUENCES_STORAGE_KEY = '@timer_sequences';
+const ACTIVE_TIMER_STORAGE_KEY = '@active_timer_state';
+
+export interface ActiveTimerState {
+  sequenceId: string;
+  currentBlockIndex: number;
+  remainingSeconds: number;
+  totalElapsedSeconds: number;
+  status: 'running' | 'paused';
+  startTime: number;
+}
 
 /**
  * Get all timer sequences from storage
@@ -17,7 +28,22 @@ const SEQUENCES_STORAGE_KEY = '@timer_sequences';
 export async function getSequences(): Promise<TimerSequence[]> {
   try {
     const jsonValue = await AsyncStorage.getItem(SEQUENCES_STORAGE_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
+    if (jsonValue == null) {
+      return [];
+    }
+    
+    const sequences = JSON.parse(jsonValue);
+    // Validate and filter out any invalid sequences
+    if (Array.isArray(sequences)) {
+      return sequences.filter(seq => {
+        const valid = isValidTimerSequence(seq);
+        if (!valid) {
+          console.warn('Invalid sequence found in storage, skipping:', seq);
+        }
+        return valid;
+      });
+    }
+    return [];
   } catch (error) {
     console.error('Error reading sequences from storage:', error);
     return [];
@@ -46,6 +72,9 @@ export async function saveSequences(sequences: TimerSequence[]): Promise<void> {
  */
 export async function addSequence(sequence: TimerSequence): Promise<void> {
   try {
+    if (!isValidTimerSequence(sequence)) {
+      throw new Error('Invalid timer sequence');
+    }
     const sequences = await getSequences();
     sequences.push(sequence);
     await saveSequences(sequences);
@@ -62,6 +91,9 @@ export async function addSequence(sequence: TimerSequence): Promise<void> {
  */
 export async function updateSequence(sequence: TimerSequence): Promise<void> {
   try {
+    if (!isValidTimerSequence(sequence)) {
+      throw new Error('Invalid timer sequence');
+    }
     const sequences = await getSequences();
     const index = sequences.findIndex(s => s.id === sequence.id);
     
@@ -90,5 +122,47 @@ export async function deleteSequence(id: string): Promise<void> {
   } catch (error) {
     console.error('Error deleting sequence:', error);
     throw error;
+  }
+}
+
+/**
+ * Save active timer state to storage
+ * @param state Active timer state to persist
+ * @returns Promise<void>
+ */
+export async function saveActiveTimerState(state: ActiveTimerState): Promise<void> {
+  try {
+    const jsonValue = JSON.stringify(state);
+    await AsyncStorage.setItem(ACTIVE_TIMER_STORAGE_KEY, jsonValue);
+  } catch (error) {
+    console.error('Error saving active timer state:', error);
+    // Don't throw - timer can continue without persistence
+  }
+}
+
+/**
+ * Get active timer state from storage
+ * @returns Promise<ActiveTimerState | null> The saved state or null if none exists
+ */
+export async function getActiveTimerState(): Promise<ActiveTimerState | null> {
+  try {
+    const jsonValue = await AsyncStorage.getItem(ACTIVE_TIMER_STORAGE_KEY);
+    return jsonValue != null ? JSON.parse(jsonValue) : null;
+  } catch (error) {
+    console.error('Error reading active timer state:', error);
+    return null;
+  }
+}
+
+/**
+ * Clear active timer state from storage
+ * @returns Promise<void>
+ */
+export async function clearActiveTimerState(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(ACTIVE_TIMER_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error clearing active timer state:', error);
+    // Don't throw - not critical
   }
 }

@@ -22,8 +22,10 @@ function formatTime(seconds: number): string {
  * Animation choice: Using Animated API with timing for smooth progress updates.
  * The circle animates in a counterclockwise direction to match countdown semantics.
  * High contrast stroke widths and colors ensure visibility in both light and dark modes.
+ * 
+ * Memoized to prevent unnecessary re-renders during timer ticks.
  */
-function CircularProgress({
+const CircularProgress = React.memo(({
   progress,
   size = 280,
   strokeWidth = 12,
@@ -35,7 +37,7 @@ function CircularProgress({
   strokeWidth?: number;
   color: string;
   backgroundColor: string;
-}) {
+}) => {
   const animatedProgress = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
@@ -89,7 +91,7 @@ function CircularProgress({
       </View>
     </View>
   );
-}
+});
 
 export function TimerScreen({route}: Props) {
   const theme = useTheme();
@@ -97,15 +99,19 @@ export function TimerScreen({route}: Props) {
   const [sequence, setSequence] = useState<TimerSequence | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load sequence from storage
+  // Load sequence from storage with error handling
   useEffect(() => {
     async function loadSequence() {
       try {
         const sequences = await getSequences();
         const found = sequences.find(s => s.id === sequenceId);
+        if (!found) {
+          console.warn('Sequence not found:', sequenceId);
+        }
         setSequence(found || null);
       } catch (error) {
         console.error('Error loading sequence:', error);
+        setSequence(null);
       } finally {
         setLoading(false);
       }
@@ -116,10 +122,12 @@ export function TimerScreen({route}: Props) {
   // Initialize timer hook
   const timer = useTimer(sequence);
 
-  // Calculate progress (0 to 1)
-  const progress = timer.currentBlock
-    ? 1 - (timer.remainingSeconds / timer.currentBlock.durationSeconds)
-    : 0;
+  // Calculate progress (0 to 1) - memoized to prevent recalculation
+  const progress = React.useMemo(() => {
+    return timer.currentBlock
+      ? 1 - (timer.remainingSeconds / timer.currentBlock.durationSeconds)
+      : 0;
+  }, [timer.currentBlock, timer.remainingSeconds]);
 
   // Prepare watch sync state
   const watchSyncState = React.useMemo(() => {
