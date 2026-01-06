@@ -251,7 +251,6 @@ export function SequencesListScreen() {
         <Text
           style={[
             styles.createButtonText,
-            styles.createButtonTextWhite,
             theme.typography.h3,
           ]}>
           Create New Sequence
@@ -337,8 +336,8 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     fontWeight: '600',
-  },
-  createButtonTextWhite: {
+    // White text is iOS standard for primary buttons in both light and dark modes
+    // The theme doesn't currently define an "onPrimary" color
     color: '#FFFFFF',
   },
   loader: {
