@@ -3,6 +3,9 @@ import {AppState, AppStateStatus} from 'react-native';
 import type {TimerSequence, TimerBlock} from '../types';
 import {saveActiveTimerState, clearActiveTimerState} from '../storage';
 
+// Constants
+const SECONDS_IN_DAY = 86400; // Maximum reasonable background time
+
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
 
 export interface TimerState {
@@ -100,7 +103,7 @@ export function useTimer(sequence: TimerSequence | null) {
             const timeInBackground = Math.max(0, Math.floor((now - backgroundTimeRef.current) / 1000));
             
             // Safeguard: if time appears negative or unreasonably large (clock changed), ignore
-            if (timeInBackground < 0 || timeInBackground > 86400) {
+            if (timeInBackground < 0 || timeInBackground > SECONDS_IN_DAY) {
               console.warn('Invalid background time detected, ignoring:', timeInBackground);
               backgroundTimeRef.current = null;
               appStateRef.current = nextAppState;
@@ -178,7 +181,7 @@ export function useTimer(sequence: TimerSequence | null) {
           if (sequence && sequence.blocks && currentBlockIndex < sequence.blocks.length - 1) {
             const nextIndex = currentBlockIndex + 1;
             setCurrentBlockIndex(nextIndex);
-            setTotalElapsedSeconds(e => e + 1);
+            setTotalElapsedSeconds(prevElapsed => prevElapsed + 1);
             return sequence.blocks[nextIndex].durationSeconds;
           } else {
             // Sequence completed
@@ -192,7 +195,7 @@ export function useTimer(sequence: TimerSequence | null) {
           }
         }
 
-        setTotalElapsedSeconds(e => e + 1);
+        setTotalElapsedSeconds(prevElapsed => prevElapsed + 1);
         return newRemaining;
       });
     } catch (error) {
@@ -308,9 +311,9 @@ export function useTimer(sequence: TimerSequence | null) {
       setCurrentBlockIndex(nextIndex);
       setRemainingSeconds(sequence.blocks[nextIndex].durationSeconds);
       
-      // Update total elapsed to include the full current block duration
-      // (e already includes elapsed time in current block, so we add the remaining time)
-      setTotalElapsedSeconds(e => e + remainingSeconds);
+      // Update total elapsed to include the skipped time
+      // prevElapsed already includes time spent in current block, so we add the remaining time
+      setTotalElapsedSeconds(prevElapsed => prevElapsed + remainingSeconds);
     } catch (error) {
       console.error('Error in skip:', error);
     }
