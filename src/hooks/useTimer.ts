@@ -92,11 +92,7 @@ export function useTimer(sequence: TimerSequence | null) {
           elapsedInBackground += Math.min(timeRemaining, remainingSeconds);
 
           // Handle multiple block transitions while in background
-          while (adjustedRemaining <= 0 && sequence && newBlockIndex < sequence.blocks.length) {
-            if (newBlockIndex === sequence.blocks.length - 1) {
-              // Last block - sequence is complete
-              break;
-            }
+          while (adjustedRemaining <= 0 && sequence && newBlockIndex < sequence.blocks.length - 1) {
             // Move to next block
             timeRemaining = Math.abs(adjustedRemaining);
             newBlockIndex++;
