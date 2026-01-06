@@ -139,7 +139,7 @@ export function useTimer(sequence: TimerSequence | null) {
           // Update state
           setRemainingSeconds(newRemainingSeconds);
           setCurrentBlockIndex(newBlockIndex);
-          setTotalElapsedSeconds(Math.min(totalElapsedSecondsRef.current + timeProcessed, sequenceTotalSeconds));
+          setTotalElapsedSeconds(totalElapsedSecondsRef.current + timeProcessed);
           backgroundTimeRef.current = null;
         }
       }
@@ -152,7 +152,7 @@ export function useTimer(sequence: TimerSequence | null) {
     return () => {
       subscription.remove();
     };
-  }, [sequenceTotalSeconds]); // Only depend on sequenceTotalSeconds which is stable
+  }, []); // Empty dependency array - handler uses refs for latest values
 
   // Timer tick logic
   const tick = useCallback(() => {
