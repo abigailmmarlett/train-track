@@ -128,6 +128,7 @@ export function TimerScreen({route}: Props) {
       return null;
     }
 
+    // When completed, currentBlock is null, so we use 'Complete' label
     return {
       currentLabel: timer.currentBlock?.label || 'Complete',
       remainingSeconds: timer.remainingSeconds,
