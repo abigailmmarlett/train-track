@@ -233,16 +233,14 @@ export function useTimer(sequence: TimerSequence | null) {
       setTotalElapsedSeconds(sequenceTotalSeconds);
       return;
     }
-
-    const currentBlockDuration = sequence.blocks[currentBlockIndex].durationSeconds;
-    const elapsedInCurrentBlock = currentBlockDuration - remainingSeconds;
     
     const nextIndex = currentBlockIndex + 1;
     setCurrentBlockIndex(nextIndex);
     setRemainingSeconds(sequence.blocks[nextIndex].durationSeconds);
     
     // Update total elapsed to include the full current block duration
-    setTotalElapsedSeconds(e => e + elapsedInCurrentBlock + remainingSeconds);
+    // (e already includes elapsed time in current block, so we add the remaining time)
+    setTotalElapsedSeconds(e => e + remainingSeconds);
   }, [sequence, currentBlockIndex, remainingSeconds, sequenceTotalSeconds]);
 
   const reset = useCallback(() => {
