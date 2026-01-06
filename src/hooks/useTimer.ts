@@ -1,6 +1,7 @@
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {AppState, AppStateStatus} from 'react-native';
 import type {TimerSequence, TimerBlock} from '../types';
+import {saveActiveTimerState, clearActiveTimerState} from '../storage';
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
 
@@ -78,73 +79,85 @@ export function useTimer(sequence: TimerSequence | null) {
   // Handle app backgrounding
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      // App going to background
-      if (
-        appStateRef.current.match(/active/) &&
-        nextAppState.match(/inactive|background/)
-      ) {
-        if (statusRef.current === 'running') {
-          backgroundTimeRef.current = Date.now();
-        }
-      }
-
-      // App coming to foreground
-      if (
-        appStateRef.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        if (statusRef.current === 'running' && backgroundTimeRef.current !== null) {
-          const timeInBackground = Math.floor(
-            (Date.now() - backgroundTimeRef.current) / 1000,
-          );
-          
-          // Adjust timer for time spent in background
-          let timeLeftToProcess = timeInBackground;
-          let timeProcessed = 0;
-          let newBlockIndex = currentBlockIndexRef.current;
-          let newRemainingSeconds = remainingSecondsRef.current;
-          const seq = sequenceRef.current;
-
-          // Process time through blocks
-          while (timeLeftToProcess > 0 && seq) {
-            if (timeLeftToProcess >= newRemainingSeconds) {
-              // This block will complete
-              timeProcessed += newRemainingSeconds;
-              timeLeftToProcess -= newRemainingSeconds;
-              
-              if (newBlockIndex >= seq.blocks.length - 1) {
-                // Last block - sequence complete
-                setStatus('completed');
-                setRemainingSeconds(0);
-                setCurrentBlockIndex(newBlockIndex);
-                setTotalElapsedSeconds(totalElapsedSecondsRef.current + timeProcessed);
-                if (intervalRef.current) {
-                  clearInterval(intervalRef.current);
-                  intervalRef.current = null;
-                }
-                backgroundTimeRef.current = null;
-                return;
-              }
-              // Move to next block
-              newBlockIndex++;
-              newRemainingSeconds = seq.blocks[newBlockIndex].durationSeconds;
-            } else {
-              // Time runs out in this block
-              timeProcessed += timeLeftToProcess;
-              newRemainingSeconds -= timeLeftToProcess;
-              timeLeftToProcess = 0;
-            }
+      try {
+        // App going to background
+        if (
+          appStateRef.current.match(/active/) &&
+          nextAppState.match(/inactive|background/)
+        ) {
+          if (statusRef.current === 'running') {
+            backgroundTimeRef.current = Date.now();
           }
-
-          // Update state
-          setRemainingSeconds(newRemainingSeconds);
-          setCurrentBlockIndex(newBlockIndex);
-          setTotalElapsedSeconds(totalElapsedSecondsRef.current + timeProcessed);
-          backgroundTimeRef.current = null;
         }
-      }
 
-      appStateRef.current = nextAppState;
+        // App coming to foreground
+        if (
+          appStateRef.current.match(/inactive|background/) &&
+          nextAppState === 'active'
+        ) {
+          if (statusRef.current === 'running' && backgroundTimeRef.current !== null) {
+            const now = Date.now();
+            const timeInBackground = Math.max(0, Math.floor((now - backgroundTimeRef.current) / 1000));
+            
+            // Safeguard: if time appears negative or unreasonably large (clock changed), ignore
+            if (timeInBackground < 0 || timeInBackground > 86400) {
+              console.warn('Invalid background time detected, ignoring:', timeInBackground);
+              backgroundTimeRef.current = null;
+              appStateRef.current = nextAppState;
+              return;
+            }
+            
+            // Adjust timer for time spent in background
+            let timeLeftToProcess = timeInBackground;
+            let timeProcessed = 0;
+            let newBlockIndex = currentBlockIndexRef.current;
+            let newRemainingSeconds = remainingSecondsRef.current;
+            const seq = sequenceRef.current;
+
+            // Process time through blocks
+            while (timeLeftToProcess > 0 && seq && seq.blocks) {
+              if (timeLeftToProcess >= newRemainingSeconds) {
+                // This block will complete
+                timeProcessed += newRemainingSeconds;
+                timeLeftToProcess -= newRemainingSeconds;
+                
+                if (newBlockIndex >= seq.blocks.length - 1) {
+                  // Last block - sequence complete
+                  setStatus('completed');
+                  setRemainingSeconds(0);
+                  setCurrentBlockIndex(newBlockIndex);
+                  setTotalElapsedSeconds(totalElapsedSecondsRef.current + timeProcessed);
+                  if (intervalRef.current) {
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                  }
+                  backgroundTimeRef.current = null;
+                  appStateRef.current = nextAppState;
+                  return;
+                }
+                // Move to next block
+                newBlockIndex++;
+                newRemainingSeconds = seq.blocks[newBlockIndex].durationSeconds;
+              } else {
+                // Time runs out in this block
+                timeProcessed += timeLeftToProcess;
+                newRemainingSeconds -= timeLeftToProcess;
+                timeLeftToProcess = 0;
+              }
+            }
+
+            // Update state
+            setRemainingSeconds(newRemainingSeconds);
+            setCurrentBlockIndex(newBlockIndex);
+            setTotalElapsedSeconds(totalElapsedSecondsRef.current + timeProcessed);
+            backgroundTimeRef.current = null;
+          }
+        }
+
+        appStateRef.current = nextAppState;
+      } catch (error) {
+        console.error('Error handling app state change:', error);
+      }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -154,43 +167,79 @@ export function useTimer(sequence: TimerSequence | null) {
     };
   }, []); // Empty dependency array - handler uses refs for latest values
 
-  // Timer tick logic
+  // Timer tick logic with error handling
   const tick = useCallback(() => {
-    setRemainingSeconds(prev => {
-      const newRemaining = prev - 1;
+    try {
+      setRemainingSeconds(prev => {
+        const newRemaining = prev - 1;
 
-      if (newRemaining <= 0) {
-        // Check if we should advance to next block
-        if (sequence && currentBlockIndex < sequence.blocks.length - 1) {
-          const nextIndex = currentBlockIndex + 1;
-          setCurrentBlockIndex(nextIndex);
-          setTotalElapsedSeconds(e => e + 1);
-          return sequence.blocks[nextIndex].durationSeconds;
-        } else {
-          // Sequence completed
-          setStatus('completed');
-          setTotalElapsedSeconds(sequenceTotalSeconds);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+        if (newRemaining <= 0) {
+          // Check if we should advance to next block
+          if (sequence && sequence.blocks && currentBlockIndex < sequence.blocks.length - 1) {
+            const nextIndex = currentBlockIndex + 1;
+            setCurrentBlockIndex(nextIndex);
+            setTotalElapsedSeconds(e => e + 1);
+            return sequence.blocks[nextIndex].durationSeconds;
+          } else {
+            // Sequence completed
+            setStatus('completed');
+            setTotalElapsedSeconds(sequenceTotalSeconds);
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
+            return 0;
           }
-          return 0;
         }
-      }
 
-      setTotalElapsedSeconds(e => e + 1);
-      return newRemaining;
-    });
+        setTotalElapsedSeconds(e => e + 1);
+        return newRemaining;
+      });
+    } catch (error) {
+      console.error('Error in timer tick:', error);
+      // Stop timer on error to prevent cascading issues
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setStatus('paused');
+    }
   }, [sequence, currentBlockIndex, sequenceTotalSeconds]);
 
-  // Start/stop interval based on status
+  // Start/stop interval based on status and persist state
   useEffect(() => {
     if (status === 'running') {
       intervalRef.current = setInterval(tick, 1000);
+      
+      // Persist active timer state
+      if (sequence && sequence.id) {
+        saveActiveTimerState({
+          sequenceId: sequence.id,
+          currentBlockIndex,
+          remainingSeconds,
+          totalElapsedSeconds,
+          status: 'running',
+          startTime: Date.now(),
+        }).catch(err => console.error('Failed to persist timer state:', err));
+      }
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
+      }
+      
+      // Persist paused state or clear if idle/completed
+      if (status === 'paused' && sequence && sequence.id) {
+        saveActiveTimerState({
+          sequenceId: sequence.id,
+          currentBlockIndex,
+          remainingSeconds,
+          totalElapsedSeconds,
+          status: 'paused',
+          startTime: Date.now(),
+        }).catch(err => console.error('Failed to persist timer state:', err));
+      } else if (status === 'idle' || status === 'completed') {
+        clearActiveTimerState().catch(err => console.error('Failed to clear timer state:', err));
       }
     }
 
@@ -200,61 +249,91 @@ export function useTimer(sequence: TimerSequence | null) {
         intervalRef.current = null;
       }
     };
-  }, [status, tick]);
+  }, [status, tick, sequence, currentBlockIndex, remainingSeconds, totalElapsedSeconds]);
 
-  // Control functions
+  // Control functions with validation
   const play = useCallback(() => {
-    if (!sequence || sequence.blocks.length === 0) return;
-    
-    if (status === 'idle') {
-      setStatus('running');
-      setCurrentBlockIndex(0);
-      setRemainingSeconds(sequence.blocks[0].durationSeconds);
-      setTotalElapsedSeconds(0);
+    try {
+      if (!sequence || !sequence.blocks || sequence.blocks.length === 0) {
+        console.warn('Cannot play: invalid sequence');
+        return;
+      }
+      
+      if (status === 'idle') {
+        setStatus('running');
+        setCurrentBlockIndex(0);
+        setRemainingSeconds(sequence.blocks[0].durationSeconds);
+        setTotalElapsedSeconds(0);
+      }
+    } catch (error) {
+      console.error('Error in play:', error);
     }
   }, [sequence, status]);
 
   const pause = useCallback(() => {
-    if (status === 'running') {
-      setStatus('paused');
+    try {
+      if (status === 'running') {
+        setStatus('paused');
+      }
+    } catch (error) {
+      console.error('Error in pause:', error);
     }
   }, [status]);
 
   const resume = useCallback(() => {
-    if (status === 'paused') {
-      setStatus('running');
+    try {
+      if (status === 'paused') {
+        setStatus('running');
+      }
+    } catch (error) {
+      console.error('Error in resume:', error);
     }
   }, [status]);
 
   const skip = useCallback(() => {
-    if (!sequence || currentBlockIndex >= sequence.blocks.length - 1) {
-      setStatus('completed');
-      setRemainingSeconds(0);
-      setTotalElapsedSeconds(sequenceTotalSeconds);
-      return;
+    try {
+      if (!sequence || !sequence.blocks) {
+        console.warn('Cannot skip: invalid sequence');
+        return;
+      }
+      
+      if (currentBlockIndex >= sequence.blocks.length - 1) {
+        setStatus('completed');
+        setRemainingSeconds(0);
+        setTotalElapsedSeconds(sequenceTotalSeconds);
+        return;
+      }
+      
+      const nextIndex = currentBlockIndex + 1;
+      setCurrentBlockIndex(nextIndex);
+      setRemainingSeconds(sequence.blocks[nextIndex].durationSeconds);
+      
+      // Update total elapsed to include the full current block duration
+      // (e already includes elapsed time in current block, so we add the remaining time)
+      setTotalElapsedSeconds(e => e + remainingSeconds);
+    } catch (error) {
+      console.error('Error in skip:', error);
     }
-    
-    const nextIndex = currentBlockIndex + 1;
-    setCurrentBlockIndex(nextIndex);
-    setRemainingSeconds(sequence.blocks[nextIndex].durationSeconds);
-    
-    // Update total elapsed to include the full current block duration
-    // (e already includes elapsed time in current block, so we add the remaining time)
-    setTotalElapsedSeconds(e => e + remainingSeconds);
   }, [sequence, currentBlockIndex, remainingSeconds, sequenceTotalSeconds]);
 
   const reset = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setStatus('idle');
-    setCurrentBlockIndex(0);
-    setTotalElapsedSeconds(0);
-    if (sequence && sequence.blocks.length > 0) {
-      setRemainingSeconds(sequence.blocks[0].durationSeconds);
-    } else {
-      setRemainingSeconds(0);
+    try {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setStatus('idle');
+      setCurrentBlockIndex(0);
+      setTotalElapsedSeconds(0);
+      if (sequence && sequence.blocks && sequence.blocks.length > 0) {
+        setRemainingSeconds(sequence.blocks[0].durationSeconds);
+      } else {
+        setRemainingSeconds(0);
+      }
+      // Clear persisted state
+      clearActiveTimerState().catch(err => console.error('Failed to clear timer state:', err));
+    } catch (error) {
+      console.error('Error in reset:', error);
     }
   }, [sequence]);
 
