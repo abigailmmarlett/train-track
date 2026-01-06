@@ -41,7 +41,7 @@ class WatchConnectivityManager: NSObject {
         
         // Send message for immediate update
         session.sendMessage(message, replyHandler: nil) { [weak self] error in
-            self?.logger.error("Failed to send timer state to watch: \(error.localizedDescription, privacy: .public). Label: \(currentLabel, privacy: .public)")
+            self?.logger.error("Failed to send timer state to watch: \(error.localizedDescription, privacy: .public). Label: \(currentLabel, privacy: .private)")
         }
         
         // Also update application context for persistence

@@ -17,6 +17,9 @@ interface TimerState {
 /**
  * Syncs timer state to Apple Watch via WatchConnectivity
  * Only active on iOS platform
+ * 
+ * Note: timerState should be memoized in the parent component to prevent
+ * unnecessary updates when only object references change.
  */
 export function useWatchSync(timerState: TimerState | null) {
   useEffect(() => {

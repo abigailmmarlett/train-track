@@ -64,9 +64,8 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     private func handleMessage(_ message: [String: Any]) {
         // Update current section label
         if let label = message["currentLabel"] as? String {
-            // Check if section changed (for haptic feedback)
-            if label != lastSectionLabel && !lastSectionLabel.isEmpty && label != Self.completeLabel {
-                // Trigger haptic when section changes
+            // Trigger haptic if section changed
+            if shouldTriggerHaptic(for: label) {
                 triggerHaptic()
             }
             lastSectionLabel = label
@@ -93,6 +92,19 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     }
     
     // MARK: - Helpers
+    
+    private func shouldTriggerHaptic(for newLabel: String) -> Bool {
+        // Don't trigger on initial state
+        guard !lastSectionLabel.isEmpty else { return false }
+        
+        // Don't trigger if label hasn't changed
+        guard newLabel != lastSectionLabel else { return false }
+        
+        // Don't trigger when transitioning to completion
+        guard newLabel != Self.completeLabel else { return false }
+        
+        return true
+    }
     
     private func formatTime(_ seconds: Int) -> String {
         let mins = seconds / 60
