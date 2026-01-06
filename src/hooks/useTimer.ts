@@ -83,14 +83,20 @@ export function useTimer(sequence: TimerSequence | null) {
           );
           
           // Adjust timer for time spent in background
-          let adjustedRemaining = remainingSeconds - timeInBackground;
-          let adjustedElapsed = totalElapsedSeconds + timeInBackground;
+          let timeRemaining = timeInBackground;
+          let adjustedRemaining = remainingSeconds - timeRemaining;
           let newBlockIndex = currentBlockIndex;
 
           // Handle multiple block transitions while in background
-          while (adjustedRemaining <= 0 && sequence && newBlockIndex < sequence.blocks.length - 1) {
+          while (adjustedRemaining <= 0 && sequence && newBlockIndex < sequence.blocks.length) {
+            if (newBlockIndex === sequence.blocks.length - 1) {
+              // Last block - sequence is complete
+              break;
+            }
+            // Move to next block
+            timeRemaining = Math.abs(adjustedRemaining);
             newBlockIndex++;
-            adjustedRemaining += sequence.blocks[newBlockIndex].durationSeconds;
+            adjustedRemaining = sequence.blocks[newBlockIndex].durationSeconds - timeRemaining;
           }
 
           // Check if sequence completed while in background
@@ -106,7 +112,7 @@ export function useTimer(sequence: TimerSequence | null) {
           } else {
             setRemainingSeconds(Math.max(0, adjustedRemaining));
             setCurrentBlockIndex(newBlockIndex);
-            setTotalElapsedSeconds(Math.min(adjustedElapsed, sequenceTotalSeconds));
+            setTotalElapsedSeconds(Math.min(totalElapsedSeconds + timeInBackground, sequenceTotalSeconds));
           }
 
           backgroundTimeRef.current = null;
