@@ -1,5 +1,26 @@
 # Apple Watch Integration
 
+## Current Implementation
+
+✅ **Apple Watch companion experience is now implemented!**
+
+See [WATCH_COMPANION.md](./WATCH_COMPANION.md) for complete documentation.
+
+### What's Included
+
+- **Display-Only Watch UI**: Shows current section, remaining time, and circular countdown ring
+- **WatchConnectivity Framework**: Real-time state sync from iPhone to Watch
+- **Haptic Feedback**: Subtle wrist tap when sections change
+- **Large, Glanceable Design**: Perfect for workout environments
+- **Native Implementation**: SwiftUI for Watch, React Native bridge for iPhone
+
+### Quick Start
+
+1. Open `ios/TrainTrack.xcodeproj` in Xcode
+2. Add Watch targets (see WATCH_COMPANION.md for details)
+3. Build and run on paired iPhone + Apple Watch
+4. Start a timer - Watch automatically syncs
+
 ## Future Considerations
 
 This app is being prepared for future Apple Watch integration. Here are the key areas to consider:

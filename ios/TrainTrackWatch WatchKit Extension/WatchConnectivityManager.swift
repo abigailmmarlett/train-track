@@ -1,0 +1,119 @@
+//
+//  WatchConnectivityManager.swift
+//  TrainTrackWatch WatchKit Extension
+//
+//  Manages communication between iPhone and Apple Watch
+//
+
+import Foundation
+import WatchConnectivity
+import SwiftUI
+
+class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
+    static let shared = WatchConnectivityManager()
+    
+    // Constants
+    private static let completeLabel = "Complete"
+    
+    @Published var isConnected = false
+    @Published var currentLabel = "Ready"
+    @Published var remainingTime = "00:00"
+    @Published var progress: CGFloat = 0.0
+    
+    private var lastSectionLabel = ""
+    private var session: WCSession?
+    
+    override private init() {
+        super.init()
+        
+        if WCSession.isSupported() {
+            session = WCSession.default
+            session?.delegate = self
+            session?.activate()
+        }
+    }
+    
+    // MARK: - WCSessionDelegate
+    
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        DispatchQueue.main.async {
+            self.isConnected = session.isReachable
+        }
+    }
+    
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        DispatchQueue.main.async {
+            self.isConnected = session.isReachable
+        }
+    }
+    
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        DispatchQueue.main.async {
+            self.handleMessage(message)
+        }
+    }
+    
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        DispatchQueue.main.async {
+            self.handleMessage(applicationContext)
+        }
+    }
+    
+    // MARK: - Message Handling
+    
+    private func handleMessage(_ message: [String: Any]) {
+        // Update current section label
+        if let label = message["currentLabel"] as? String {
+            // Trigger haptic if section changed
+            if shouldTriggerHaptic(for: label) {
+                triggerHaptic()
+            }
+            lastSectionLabel = label
+            currentLabel = label
+        }
+        
+        // Update remaining time
+        if let seconds = message["remainingSeconds"] as? Int {
+            remainingTime = formatTime(seconds)
+        }
+        
+        // Update progress (0 to 1)
+        if let progressValue = message["progress"] as? Double {
+            progress = CGFloat(progressValue)
+        }
+        
+        // Handle completion
+        if let isCompleted = message["isCompleted"] as? Bool, isCompleted {
+            currentLabel = Self.completeLabel
+            remainingTime = "00:00"
+            progress = 1.0
+            triggerHaptic()
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func shouldTriggerHaptic(for newLabel: String) -> Bool {
+        // Don't trigger on initial state
+        guard !lastSectionLabel.isEmpty else { return false }
+        
+        // Don't trigger if label hasn't changed
+        guard newLabel != lastSectionLabel else { return false }
+        
+        // Don't trigger when transitioning to completion
+        guard newLabel != Self.completeLabel else { return false }
+        
+        return true
+    }
+    
+    private func formatTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+    
+    private func triggerHaptic() {
+        // Subtle haptic notification when sections change or timer completes
+        WKInterfaceDevice.current().play(.notification)
+    }
+}
