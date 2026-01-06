@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Animated} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme, useTimer} from '../hooks';
@@ -36,14 +36,15 @@ function CircularProgress({
   color: string;
   backgroundColor: string;
 }) {
-  const [animatedProgress] = useState(new Animated.Value(0));
+  const animatedProgress = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
     // Smooth animation with 300ms duration for responsive feel
+    // Using non-native driver since we're animating rotation which affects transform
     Animated.timing(animatedProgress, {
       toValue: progress,
       duration: 300,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [progress, animatedProgress]);
 
@@ -121,12 +122,13 @@ export function TimerScreen({route}: Props) {
     : 0;
 
   // Auto-start on mount if idle
+  const hasStarted = useRef(false);
   useEffect(() => {
-    if (!loading && sequence && timer.status === 'idle') {
+    if (!loading && sequence && timer.status === 'idle' && !hasStarted.current) {
+      hasStarted.current = true;
       timer.play();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, sequence, timer.status]);
+  }, [loading, sequence, timer]);
 
   if (loading) {
     return (

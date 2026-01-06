@@ -12,12 +12,14 @@ The Active Timer screen implements smooth, high-contrast animations optimized fo
 
 **Key Features**:
 - **Duration**: 300ms for each progress update
-- **Native Driver**: Uses `useNativeDriver: true` for optimal performance
+- **useRef for Animated.Value**: Maintains same animation instance across re-renders
+- **Non-native driver**: Required because we're animating transform/layout properties
 - **Smooth Transitions**: Progress updates animate smoothly between states rather than jumping
 
 **Rationale**:
 - **300ms duration**: Provides a responsive feel without being jarring. This short duration ensures users see real-time feedback while maintaining smooth motion.
-- **Native driver**: Animations run on the native thread, preventing JavaScript thread blocking and ensuring 60fps performance even during intensive operations.
+- **useRef pattern**: Prevents creating new Animated.Value instances on every render, which would cause animation glitches and memory leaks.
+- **Non-native driver**: While native driver offers better performance, it cannot animate layout-affecting properties like rotation transforms on some platforms. Using JavaScript driver ensures compatibility.
 - **Interpolated rotation**: The circular progress uses animated rotation transforms that smoothly transition as time counts down.
 
 **Visual Design**:
@@ -86,15 +88,15 @@ All UI elements adapt to system appearance:
 
 ### Why These Choices
 
-1. **Native Driver Animation**: 
-   - Offloads animation calculations to native thread
-   - Maintains 60fps even during timer operations
-   - Prevents UI jank
+1. **useRef for Animated Values**: 
+   - Prevents creating new animation instances on each render
+   - Maintains animation state across component updates
+   - Avoids memory leaks and animation glitches
 
-2. **Animated.View over SVG**:
-   - Simpler implementation
-   - Better performance for basic circular progress
-   - Native rendering without additional libraries
+2. **Animated.View with JavaScript driver**:
+   - Ensures compatibility with all animation types
+   - Smooth animations for transform properties
+   - No additional dependencies required
 
 3. **State-based Updates**:
    - React's reconciliation handles efficient re-renders
@@ -105,6 +107,11 @@ All UI elements adapt to system appearance:
    - Fast enough to feel responsive
    - Slow enough to see smooth motion
    - Doesn't lag behind timer updates
+
+5. **Auto-start with hasStarted ref**:
+   - Prevents re-triggering timer.play() on re-renders
+   - Ensures timer starts only once when component mounts
+   - Avoids timer reset issues
 
 ## Accessibility
 
