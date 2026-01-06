@@ -1,4 +1,6 @@
 export type RootStackParamList = {
   Home: undefined;
-  // Add more screens here as needed
+  SequencesList: undefined;
+  Timer: {sequenceId: string};
+  CreateSequence: undefined;
 };
