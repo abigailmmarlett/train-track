@@ -100,6 +100,7 @@ export function useTimer(sequence: TimerSequence | null) {
           
           // Adjust timer for time spent in background
           let timeLeftToProcess = timeInBackground;
+          let timeProcessed = 0;
           let newBlockIndex = currentBlockIndexRef.current;
           let newRemainingSeconds = remainingSecondsRef.current;
           const seq = sequenceRef.current;
@@ -108,12 +109,15 @@ export function useTimer(sequence: TimerSequence | null) {
           while (timeLeftToProcess > 0 && seq) {
             if (timeLeftToProcess >= newRemainingSeconds) {
               // This block will complete
+              timeProcessed += newRemainingSeconds;
+              timeLeftToProcess -= newRemainingSeconds;
+              
               if (newBlockIndex >= seq.blocks.length - 1) {
                 // Last block - sequence complete
                 setStatus('completed');
                 setRemainingSeconds(0);
                 setCurrentBlockIndex(newBlockIndex);
-                setTotalElapsedSeconds(sequenceTotalSeconds);
+                setTotalElapsedSeconds(totalElapsedSecondsRef.current + timeProcessed);
                 if (intervalRef.current) {
                   clearInterval(intervalRef.current);
                   intervalRef.current = null;
@@ -122,11 +126,11 @@ export function useTimer(sequence: TimerSequence | null) {
                 return;
               }
               // Move to next block
-              timeLeftToProcess -= newRemainingSeconds;
               newBlockIndex++;
               newRemainingSeconds = seq.blocks[newBlockIndex].durationSeconds;
             } else {
               // Time runs out in this block
+              timeProcessed += timeLeftToProcess;
               newRemainingSeconds -= timeLeftToProcess;
               timeLeftToProcess = 0;
             }
@@ -135,7 +139,7 @@ export function useTimer(sequence: TimerSequence | null) {
           // Update state
           setRemainingSeconds(newRemainingSeconds);
           setCurrentBlockIndex(newBlockIndex);
-          setTotalElapsedSeconds(Math.min(totalElapsedSecondsRef.current + timeInBackground, sequenceTotalSeconds));
+          setTotalElapsedSeconds(Math.min(totalElapsedSecondsRef.current + timeProcessed, sequenceTotalSeconds));
           backgroundTimeRef.current = null;
         }
       }
@@ -230,12 +234,15 @@ export function useTimer(sequence: TimerSequence | null) {
       return;
     }
 
+    const currentBlockDuration = sequence.blocks[currentBlockIndex].durationSeconds;
+    const elapsedInCurrentBlock = currentBlockDuration - remainingSeconds;
+    
     const nextIndex = currentBlockIndex + 1;
     setCurrentBlockIndex(nextIndex);
     setRemainingSeconds(sequence.blocks[nextIndex].durationSeconds);
     
-    // Update total elapsed to include skipped block
-    setTotalElapsedSeconds(e => e + remainingSeconds);
+    // Update total elapsed to include the full current block duration
+    setTotalElapsedSeconds(e => e + elapsedInCurrentBlock + remainingSeconds);
   }, [sequence, currentBlockIndex, remainingSeconds, sequenceTotalSeconds]);
 
   const reset = useCallback(() => {
