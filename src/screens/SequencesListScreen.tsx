@@ -74,6 +74,10 @@ export function SequencesListScreen() {
     navigation.navigate('Timer', {sequenceId: sequence.id});
   };
 
+  const handleEditPress = (sequence: TimerSequence) => {
+    navigation.navigate('CreateSequence', {sequenceId: sequence.id});
+  };
+
   const handleCreatePress = () => {
     navigation.navigate('CreateSequence');
   };
@@ -136,36 +140,51 @@ export function SequencesListScreen() {
     const formattedDuration = formatDuration(totalDuration);
 
     return (
-      <TouchableOpacity
+      <View
         style={[
           styles.sequenceItem,
           {
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.border,
           },
-        ]}
-        onPress={() => handleSequencePress(item)}
-        activeOpacity={0.7}>
-        <View style={styles.sequenceContent}>
+        ]}>
+        <TouchableOpacity
+          style={styles.sequenceMainContent}
+          onPress={() => handleSequencePress(item)}
+          activeOpacity={0.7}>
+          <View style={styles.sequenceContent}>
+            <Text
+              style={[
+                styles.sequenceName,
+                {color: theme.colors.text},
+                theme.typography.h2,
+              ]}
+              numberOfLines={2}>
+              {item.name}
+            </Text>
+            <Text
+              style={[
+                styles.sequenceDuration,
+                {color: theme.colors.textSecondary},
+                theme.typography.h3,
+              ]}>
+              {formattedDuration}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => handleEditPress(item)}
+          activeOpacity={0.7}>
           <Text
             style={[
-              styles.sequenceName,
-              {color: theme.colors.text},
-              theme.typography.h2,
-            ]}
-            numberOfLines={2}>
-            {item.name}
-          </Text>
-          <Text
-            style={[
-              styles.sequenceDuration,
-              {color: theme.colors.textSecondary},
-              theme.typography.h3,
+              styles.editButtonText,
+              {color: theme.colors.primary},
             ]}>
-            {formattedDuration}
+            Edit
           </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -284,6 +303,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  sequenceMainContent: {
+    flex: 1,
   },
   sequenceContent: {
     padding: 24,
@@ -293,6 +317,17 @@ const styles = StyleSheet.create({
   },
   sequenceDuration: {
     marginTop: 4,
+  },
+  editButton: {
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  editButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
