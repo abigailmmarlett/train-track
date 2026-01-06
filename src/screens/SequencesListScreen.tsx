@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderLeftWidth: 1,
-    borderLeftColor: 'rgba(0, 0, 0, 0.1)',
+    borderLeftColor: 'rgba(0, 0, 0, 0.05)',
   },
   editButtonText: {
     fontSize: 16,

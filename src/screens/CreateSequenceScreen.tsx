@@ -56,7 +56,7 @@ export function CreateSequenceScreen() {
 
   const handleAddBlock = () => {
     const newBlock: TimerBlock = {
-      id: `block_${Date.now()}`,
+      id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       label: '',
       durationSeconds: 60, // Default to 1 minute
     };
@@ -142,7 +142,7 @@ export function CreateSequenceScreen() {
 
     try {
       const sequence: TimerSequence = {
-        id: isEditMode ? sequenceId : `seq_${Date.now()}`,
+        id: isEditMode ? sequenceId : `seq_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: sequenceName.trim(),
         blocks: blocks,
       };
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
   button: {
     flex: 1,
