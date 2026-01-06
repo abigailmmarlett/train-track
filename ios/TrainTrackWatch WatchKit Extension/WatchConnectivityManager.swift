@@ -98,7 +98,7 @@ class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     }
     
     private func triggerHaptic() {
-        // Subtle haptic notification when section ends
+        // Subtle haptic notification when sections change or timer completes
         WKInterfaceDevice.current().play(.notification)
     }
 }

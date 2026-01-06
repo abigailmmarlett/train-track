@@ -39,7 +39,7 @@ class WatchConnectivityManager: NSObject {
         
         // Send message for immediate update
         session.sendMessage(message, replyHandler: nil) { error in
-            print("Watch message error: \(error.localizedDescription)")
+            print("Failed to send timer state to watch: \(error.localizedDescription)")
         }
         
         // Also update application context for persistence
