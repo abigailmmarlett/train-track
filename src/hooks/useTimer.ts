@@ -30,6 +30,22 @@ export function useTimer(sequence: TimerSequence | null) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const backgroundTimeRef = useRef<number | null>(null);
   const appStateRef = useRef(AppState.currentState);
+  
+  // Refs to track latest values without triggering effect re-runs
+  const statusRef = useRef(status);
+  const remainingSecondsRef = useRef(remainingSeconds);
+  const currentBlockIndexRef = useRef(currentBlockIndex);
+  const totalElapsedSecondsRef = useRef(totalElapsedSeconds);
+  const sequenceRef = useRef(sequence);
+  
+  // Keep refs in sync
+  useEffect(() => {
+    statusRef.current = status;
+    remainingSecondsRef.current = remainingSeconds;
+    currentBlockIndexRef.current = currentBlockIndex;
+    totalElapsedSecondsRef.current = totalElapsedSeconds;
+    sequenceRef.current = sequence;
+  }, [status, remainingSeconds, currentBlockIndex, totalElapsedSeconds, sequence]);
 
   // Calculate total sequence duration
   const sequenceTotalSeconds =
@@ -67,7 +83,7 @@ export function useTimer(sequence: TimerSequence | null) {
         appStateRef.current.match(/active/) &&
         nextAppState.match(/inactive|background/)
       ) {
-        if (status === 'running') {
+        if (statusRef.current === 'running') {
           backgroundTimeRef.current = Date.now();
         }
       }
@@ -77,47 +93,49 @@ export function useTimer(sequence: TimerSequence | null) {
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        if (status === 'running' && backgroundTimeRef.current !== null) {
+        if (statusRef.current === 'running' && backgroundTimeRef.current !== null) {
           const timeInBackground = Math.floor(
             (Date.now() - backgroundTimeRef.current) / 1000,
           );
           
           // Adjust timer for time spent in background
-          let timeRemaining = timeInBackground;
-          let adjustedRemaining = remainingSeconds - timeRemaining;
-          let newBlockIndex = currentBlockIndex;
-          let elapsedInBackground = 0;
+          let timeLeftToProcess = timeInBackground;
+          let newBlockIndex = currentBlockIndexRef.current;
+          let newRemainingSeconds = remainingSecondsRef.current;
+          const seq = sequenceRef.current;
 
-          // Track time elapsed in current block before moving to next
-          elapsedInBackground += Math.min(timeRemaining, remainingSeconds);
-
-          // Handle multiple block transitions while in background
-          while (adjustedRemaining <= 0 && sequence && newBlockIndex < sequence.blocks.length - 1) {
-            // Move to next block
-            timeRemaining = Math.abs(adjustedRemaining);
-            newBlockIndex++;
-            adjustedRemaining = sequence.blocks[newBlockIndex].durationSeconds - timeRemaining;
-            
-            // Add elapsed time in this block
-            elapsedInBackground += Math.min(timeRemaining, sequence.blocks[newBlockIndex].durationSeconds);
-          }
-
-          // Check if sequence completed while in background
-          if (adjustedRemaining <= 0 && sequence && newBlockIndex === sequence.blocks.length - 1) {
-            setStatus('completed');
-            setRemainingSeconds(0);
-            setCurrentBlockIndex(newBlockIndex);
-            setTotalElapsedSeconds(sequenceTotalSeconds);
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current);
-              intervalRef.current = null;
+          // Process time through blocks
+          while (timeLeftToProcess > 0 && seq) {
+            if (timeLeftToProcess >= newRemainingSeconds) {
+              // This block will complete
+              if (newBlockIndex >= seq.blocks.length - 1) {
+                // Last block - sequence complete
+                setStatus('completed');
+                setRemainingSeconds(0);
+                setCurrentBlockIndex(newBlockIndex);
+                setTotalElapsedSeconds(sequenceTotalSeconds);
+                if (intervalRef.current) {
+                  clearInterval(intervalRef.current);
+                  intervalRef.current = null;
+                }
+                backgroundTimeRef.current = null;
+                return;
+              }
+              // Move to next block
+              timeLeftToProcess -= newRemainingSeconds;
+              newBlockIndex++;
+              newRemainingSeconds = seq.blocks[newBlockIndex].durationSeconds;
+            } else {
+              // Time runs out in this block
+              newRemainingSeconds -= timeLeftToProcess;
+              timeLeftToProcess = 0;
             }
-          } else {
-            setRemainingSeconds(Math.max(0, adjustedRemaining));
-            setCurrentBlockIndex(newBlockIndex);
-            setTotalElapsedSeconds(Math.min(totalElapsedSeconds + elapsedInBackground, sequenceTotalSeconds));
           }
 
+          // Update state
+          setRemainingSeconds(newRemainingSeconds);
+          setCurrentBlockIndex(newBlockIndex);
+          setTotalElapsedSeconds(Math.min(totalElapsedSecondsRef.current + timeInBackground, sequenceTotalSeconds));
           backgroundTimeRef.current = null;
         }
       }
@@ -130,7 +148,7 @@ export function useTimer(sequence: TimerSequence | null) {
     return () => {
       subscription.remove();
     };
-  }, [status, remainingSeconds, currentBlockIndex, totalElapsedSeconds, sequence, sequenceTotalSeconds]);
+  }, [sequenceTotalSeconds]); // Only depend on sequenceTotalSeconds which is stable
 
   // Timer tick logic
   const tick = useCallback(() => {
