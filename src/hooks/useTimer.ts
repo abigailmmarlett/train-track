@@ -86,6 +86,10 @@ export function useTimer(sequence: TimerSequence | null) {
           let timeRemaining = timeInBackground;
           let adjustedRemaining = remainingSeconds - timeRemaining;
           let newBlockIndex = currentBlockIndex;
+          let elapsedInBackground = 0;
+
+          // Track time elapsed in current block before moving to next
+          elapsedInBackground += Math.min(timeRemaining, remainingSeconds);
 
           // Handle multiple block transitions while in background
           while (adjustedRemaining <= 0 && sequence && newBlockIndex < sequence.blocks.length) {
@@ -97,6 +101,9 @@ export function useTimer(sequence: TimerSequence | null) {
             timeRemaining = Math.abs(adjustedRemaining);
             newBlockIndex++;
             adjustedRemaining = sequence.blocks[newBlockIndex].durationSeconds - timeRemaining;
+            
+            // Add elapsed time in this block
+            elapsedInBackground += Math.min(timeRemaining, sequence.blocks[newBlockIndex].durationSeconds);
           }
 
           // Check if sequence completed while in background
@@ -112,7 +119,7 @@ export function useTimer(sequence: TimerSequence | null) {
           } else {
             setRemainingSeconds(Math.max(0, adjustedRemaining));
             setCurrentBlockIndex(newBlockIndex);
-            setTotalElapsedSeconds(Math.min(totalElapsedSeconds + timeInBackground, sequenceTotalSeconds));
+            setTotalElapsedSeconds(Math.min(totalElapsedSeconds + elapsedInBackground, sequenceTotalSeconds));
           }
 
           backgroundTimeRef.current = null;
